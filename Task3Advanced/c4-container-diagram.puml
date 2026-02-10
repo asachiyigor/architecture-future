@@ -1,0 +1,94 @@
+@startuml C4_Container_Future
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Целевая архитектура "Будущее 2.0" — Container Diagram
+
+Person(patient, "Пациент", "Клиент клиники")
+Person(doctor, "Врач", "Медицинский специалист")
+Person(analyst, "Бизнес-аналитик", "Внутренний пользователь")
+Person(finuser, "Клиент банка", "Финтех-пользователь")
+
+System_Boundary(future2, "Будущее 2.0 — Целевая архитектура") {
+
+    System_Boundary(gateway_layer, "API Gateway Layer") {
+        Container(api_gw, "API Gateway", "Kong / Envoy", "Маршрутизация, Rate Limiting, Auth")
+    }
+
+    System_Boundary(medical_domain, "Домен: Медицина") {
+        Container(med_api, "Medical API", "Java / Spring Boot", "Медицинские карты, расписание, приём")
+        ContainerDb(med_db, "Medical DB", "PostgreSQL", "Медицинские данные, карты, исследования")
+        Container(med_events, "Medical Events Producer", "Kafka Producer", "Публикация доменных событий")
+    }
+
+    System_Boundary(fintech_domain, "Домен: Финтех") {
+        Container(fin_api, "Fintech API", "Golang / Java", "Кредиты, счета, платежи")
+        ContainerDb(fin_db, "Fintech DB", "PostgreSQL", "Финансовые данные")
+        Container(fin_events, "Fintech Events Producer", "Kafka Producer", "Публикация финансовых событий")
+    }
+
+    System_Boundary(ai_domain, "Домен: AI/ML") {
+        Container(ai_api, "AI Service", "Python / FastAPI", "Диагностика, прогнозы, NLP")
+        ContainerDb(ai_store, "Model Store", "S3 + MLflow", "Модели, артефакты")
+        Container(ai_events, "AI Events Producer", "Kafka Producer", "Результаты анализа")
+    }
+
+    System_Boundary(data_platform, "Платформа данных (Data Mesh)") {
+        Container(kafka, "Event Bus", "Apache Kafka", "Центральная шина событий")
+        Container(schema_reg, "Schema Registry", "Confluent SR", "Каталог схем событий")
+        Container(lakehouse, "Data Lakehouse", "Apache Iceberg + Nessie", "Аналитическое хранилище")
+        Container(dremio, "Query Engine", "Dremio", "SQL-запросы к Lakehouse")
+        Container(datahub, "Data Catalog", "DataHub", "Каталог данных, lineage")
+        Container(airflow, "Orchestrator", "Apache Airflow", "Оркестрация пайплайнов")
+    }
+
+    System_Boundary(selfservice, "Портал самообслуживания") {
+        Container(portal, "BI Portal", "React / Superset", "Витрина данных, дашборды")
+        Container(report_api, "Report API", "Python / FastAPI", "API для кастомных отчётов")
+    }
+
+    System_Boundary(infra, "Инфраструктура") {
+        Container(iam, "IAM / SSO", "Keycloak", "Аутентификация, RBAC")
+        Container(monitoring, "Observability", "Prometheus + Grafana + ELK", "Мониторинг, логи, трейсинг")
+    }
+}
+
+System_Boundary(legacy, "Легаси (этап миграции)") {
+    ContainerDb(dwh_legacy, "Legacy DWH", "SQL Server 2008", "Мост совместимости")
+    Container(camel, "ESB Bridge", "Apache Camel", "Антикоррупционный слой")
+}
+
+System_Ext(cloud, "Yandex Cloud", "IaaS + PaaS")
+
+Rel(patient, api_gw, "HTTPS")
+Rel(doctor, api_gw, "HTTPS")
+Rel(analyst, portal, "HTTPS")
+Rel(finuser, api_gw, "HTTPS")
+
+Rel(api_gw, med_api, "REST/gRPC")
+Rel(api_gw, fin_api, "REST/gRPC")
+Rel(api_gw, ai_api, "REST")
+
+Rel(med_api, med_db, "JDBC")
+Rel(fin_api, fin_db, "JDBC")
+Rel(ai_api, ai_store, "S3 API")
+
+Rel(med_events, kafka, "Produce events")
+Rel(fin_events, kafka, "Produce events")
+Rel(ai_events, kafka, "Produce events")
+
+Rel(kafka, schema_reg, "Schema validation")
+Rel(kafka, lakehouse, "Consume -> store")
+Rel(airflow, lakehouse, "Orchestrate ETL")
+Rel(dremio, lakehouse, "SQL queries")
+Rel(datahub, lakehouse, "Metadata scan")
+
+Rel(portal, dremio, "SQL / REST")
+Rel(report_api, dremio, "SQL")
+
+Rel(camel, kafka, "ACL bridge")
+Rel(dwh_legacy, camel, "Legacy queries")
+
+Rel(api_gw, iam, "Auth check")
+Rel_R(future2, cloud, "Deployed on")
+
+@enduml

@@ -1,0 +1,36 @@
+@startuml C4_Component_Medical
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Домен "Медицина" — Component Diagram
+
+Container_Boundary(med_api, "Medical API") {
+    Component(patient_ctrl, "Patient Controller", "REST", "CRUD пациентов")
+    Component(appointment_ctrl, "Appointment Controller", "REST", "Расписание, приёмы")
+    Component(diagnosis_ctrl, "Diagnosis Controller", "REST", "Диагнозы, исследования")
+    Component(patient_svc, "Patient Service", "Java", "Бизнес-логика пациентов")
+    Component(appt_svc, "Appointment Service", "Java", "Логика расписания")
+    Component(diag_svc, "Diagnosis Service", "Java", "Логика диагностики")
+    Component(event_pub, "Event Publisher", "Kafka Producer", "Публикация доменных событий")
+    Component(acl, "ACL Adapter", "Java", "Антикоррупционный слой к DWH")
+}
+
+ContainerDb(med_db, "Medical DB", "PostgreSQL")
+Container(kafka, "Kafka", "Event Bus")
+ContainerDb(dwh, "Legacy DWH", "SQL Server 2008")
+
+Rel(patient_ctrl, patient_svc, "")
+Rel(appointment_ctrl, appt_svc, "")
+Rel(diagnosis_ctrl, diag_svc, "")
+
+Rel(patient_svc, med_db, "JDBC")
+Rel(appt_svc, med_db, "JDBC")
+Rel(diag_svc, med_db, "JDBC")
+
+Rel(patient_svc, event_pub, "Domain Events")
+Rel(appt_svc, event_pub, "Domain Events")
+Rel(diag_svc, event_pub, "Domain Events")
+
+Rel(event_pub, kafka, "Produce")
+Rel(acl, dwh, "Read-only bridge")
+
+@enduml
